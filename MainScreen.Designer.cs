@@ -44,7 +44,6 @@ namespace SpectrumPlotter
             this.label1 = new System.Windows.Forms.Label();
             this.txtIcgPeriod = new System.Windows.Forms.TextBox();
             this.txtShPeriod = new System.Windows.Forms.TextBox();
-            this.txtPort = new System.Windows.Forms.TextBox();
             this.formsPlot1 = new ScottPlot.FormsPlot();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.splitContainer3 = new System.Windows.Forms.SplitContainer();
@@ -91,7 +90,7 @@ namespace SpectrumPlotter
             // 
             // btnConnect
             // 
-            this.btnConnect.Location = new System.Drawing.Point(79, 9);
+            this.btnConnect.Location = new System.Drawing.Point(103, 9);
             this.btnConnect.Name = "btnConnect";
             this.btnConnect.Size = new System.Drawing.Size(75, 22);
             this.btnConnect.TabIndex = 1;
@@ -122,7 +121,6 @@ namespace SpectrumPlotter
             this.splitContainer1.Panel1.Controls.Add(this.label1);
             this.splitContainer1.Panel1.Controls.Add(this.txtIcgPeriod);
             this.splitContainer1.Panel1.Controls.Add(this.txtShPeriod);
-            this.splitContainer1.Panel1.Controls.Add(this.txtPort);
             this.splitContainer1.Panel1.Controls.Add(this.btnConnect);
             // 
             // splitContainer1.Panel2
@@ -251,14 +249,6 @@ namespace SpectrumPlotter
             this.txtShPeriod.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.txtShPeriod.TextChanged += new System.EventHandler(this.txtShPeriod_TextChanged);
             this.txtShPeriod.KeyDown += new System.Windows.Forms.KeyEventHandler(this.txtShPeriod_KeyDown);
-            // 
-            // txtPort
-            // 
-            this.txtPort.Location = new System.Drawing.Point(160, 18);
-            this.txtPort.Name = "txtPort";
-            this.txtPort.Size = new System.Drawing.Size(60, 20);
-            this.txtPort.TabIndex = 2;
-            this.txtPort.Text = "COM7";
             // 
             // formsPlot1
             // 
@@ -490,7 +480,7 @@ namespace SpectrumPlotter
             this.cmbPorts.FormattingEnabled = true;
             this.cmbPorts.Location = new System.Drawing.Point(13, 10);
             this.cmbPorts.Name = "cmbPorts";
-            this.cmbPorts.Size = new System.Drawing.Size(60, 21);
+            this.cmbPorts.Size = new System.Drawing.Size(84, 21);
             this.cmbPorts.TabIndex = 11;
             this.cmbPorts.DropDown += new System.EventHandler(this.cmbPorts_DropDown);
             // 
@@ -532,7 +522,6 @@ namespace SpectrumPlotter
 
         private System.Windows.Forms.Button btnConnect;
         private System.Windows.Forms.SplitContainer splitContainer1;
-        private System.Windows.Forms.TextBox txtPort;
         private ScottPlot.FormsPlot formsPlot1;
         private System.Windows.Forms.CheckBox chkTrigger;
         private System.Windows.Forms.Label label2;

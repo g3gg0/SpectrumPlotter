@@ -16,6 +16,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,6 +72,8 @@ namespace SpectrumPlotter
         public MainScreen()
         {
             InitializeComponent();
+
+            Text += "      v" + ThisAssembly.Git.SemVer.Major + "." + ThisAssembly.Git.SemVer.Minor + "." + ThisAssembly.Git.Commits + "-" + ThisAssembly.Git.Branch + "+" + ThisAssembly.Git.Commit + (ThisAssembly.Git.IsDirty ? " dirty" : "");
 
             formsPlot1.Plot.XLabel("Wavelength [nm]");
             formsPlot1.Plot.YLabel("Amplitude [rel]");
@@ -403,7 +406,7 @@ namespace SpectrumPlotter
 
                     btnConnect.Text = "Disconnect";
 
-                    Config.SerialPort = txtPort.Text;
+                    Config.SerialPort = cmbPorts.Text;
                     Config.Changed = true;
                 }
                 else
