@@ -1026,6 +1026,7 @@ namespace SpectrumPlotter
             }
 
             CaptureAdd(PlotPolygon.Xs, PlotPolygon.Ys);
+            CalculateMatch(PlotPolygon.Xs, PlotPolygon.Ys);
 
             PlotRebuild = true;
             PlotFit = true;
