@@ -346,7 +346,7 @@ namespace SpectrumPlotter
             this.lstElementLib.View = System.Windows.Forms.View.Details;
             this.lstElementLib.ColumnClick += new System.Windows.Forms.ColumnClickEventHandler(this.lstElementLib_ColumnClick);
             this.lstElementLib.ItemSelectionChanged += new System.Windows.Forms.ListViewItemSelectionChangedEventHandler(this.lstElementLib_ItemSelectionChanged);
-            this.lstElementLib.Click += new System.EventHandler(this.lstElementLib_Click);
+            this.lstElementLib.MouseDown += lstElementLib_MouseDown;
             // 
             // colHdrSymbol
             // 
@@ -517,6 +517,7 @@ namespace SpectrumPlotter
             this.ResumeLayout(false);
 
         }
+
 
         #endregion
 

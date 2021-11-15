@@ -16,6 +16,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -36,12 +37,12 @@ namespace SpectrumPlotter
         private System.Windows.Forms.Timer UpdateTimer = null;
 
         private ushort[] PayloadBuffer = new ushort[8192];
-        private double[] SignalX = new double[1];
-        private double[] SignalY = new double[1];
-        private double[] SignalResampledX = new double[1];
-        private double[] SignalResampledY = new double[1];
+        private double[] SignalCorrectedX = null;
+        private double[] SignalCorrectedY = null;
+        private double[] SignalResampledX = null;
+        private double[] SignalResampledY = null;
         private int PayloadUsed = 0;
-        private bool PayloadUpdated = false;
+        private bool SensorDataReceived = false;
         private bool PlotUpdated = false;
         private bool PlotRebuild = false;
         private bool PlotFit = false;
@@ -49,6 +50,7 @@ namespace SpectrumPlotter
 
         private bool Updating = false;
         private SignalPlotXY PlotPolygon = null;
+        private SignalPlotXY PlotSelectedElement = null;
         private Text MaxLabel = null;
         private Text CursorLabel = null;
         private ArrowCoordinated MaxArrow = null;
@@ -64,7 +66,6 @@ namespace SpectrumPlotter
         private DateTime CaptureEnd = DateTime.Now;
 
         private bool ConfigUpdated = false;
-        private SignalPlotXY PlotSelectedElement = null;
         private double CurrentWavelength = 0;
         private double[] LastGeneratedPoly = null;
         private bool Resampling;
@@ -80,8 +81,15 @@ namespace SpectrumPlotter
             formsPlot1.Plot.Title("CMOS Spectral plot");
             formsPlot1.Plot.Style(Style.Gray2);
             formsPlot1.Plot.Legend();
-
             formsPlot1.MouseMove += FormsPlot1_MouseMove;
+            formsPlot1.RightClicked -= formsPlot1.DefaultRightClickEvent;
+            formsPlot1.RightClicked += CustomRightClickEvent;
+
+            MaxLabel = new Text() { X = 0, Y = 0, Label = "(empty)", Color = Color.Red, IsVisible = false };
+            MaxArrow = new ArrowCoordinated(0, 0, 0, 0) { Label = "", Color = Color.Red, LineWidth = 2, ArrowheadWidth = 9, ArrowheadLength = 9, IsVisible = false };
+            CursorLabel = new Text() { X = 0, Y = 0, Label = "(empty)", Color = Color.Green, IsVisible = false };
+            PlotSelectedElement = new SignalPlotXY() { Label = "empty", IsVisible = false };
+            PlotPolygon = new SignalPlotXY() { Label = "Measuement", IsVisible = false };
 
             Config = ConfigFile.Load(Config.Filename, out bool valid);
 
@@ -100,8 +108,6 @@ namespace SpectrumPlotter
             lvwColumnSorter = new ListViewColumnSorter();
             this.lstElementLib.ListViewItemSorter = lvwColumnSorter;
 
-            formsPlot1.RightClicked -= formsPlot1.DefaultRightClickEvent;
-            formsPlot1.RightClicked += CustomRightClickEvent;
 
             Config.ChangedCallback += () => { UpdateFromConfig(); };
             UpdateFromConfig();
@@ -289,62 +295,69 @@ namespace SpectrumPlotter
 
         private void FormsPlot1_MouseMove(object sender, MouseEventArgs e)
         {
-            if (PlotPolygon == null)
-            {
-                return;
-            }
-
             try
             {
+                double pxPerUnit = formsPlot1.Plot.XAxis.Dims.PxPerUnit;
+                double pyPerUnit = formsPlot1.Plot.YAxis.Dims.PxPerUnit;
                 (double mouseCoordX, double mouseCoordY) = formsPlot1.GetMouseCoordinates();
-                (double pointX, double pointY, int pointIndex) = PlotPolygon.GetPointNearestX(mouseCoordX);
 
-                CurrentWavelength = pointX;
-
-                if (pointIndex > 0 && pointX > 0)
+                if (double.IsNaN(pxPerUnit) || double.IsNaN(pyPerUnit))
                 {
-                    MaxArrow.Tip.X = pointX;
-                    MaxArrow.Tip.Y = pointY;
-                    MaxArrow.Base.X = pointX;
-                    CursorLabel.Label = "      λ: " + pointX.ToString("0.00") + " nm";
-                    CursorLabel.X = mouseCoordX + 8 / formsPlot1.Plot.XAxis.Dims.PxPerUnit;
-                    CursorLabel.Y = mouseCoordY;
+                    return;
                 }
 
-                int region = 50;
-                int pointStart = Math.Max(pointIndex - region, PlotPolygon.MinRenderIndex);
-                int pointEnd = Math.Min(pointIndex + region, PlotPolygon.MaxRenderIndex);
-                double peakValue = double.MinValue;
-                double peakWavelength = 0;
-                double peakRelValue = 0;
-                int peakIndex = -1;
+                CursorLabel.Label = "      λ: " + mouseCoordX.ToString("0.00") + " nm";
+                CursorLabel.X = mouseCoordX + 8 / pxPerUnit;
+                CursorLabel.Y = mouseCoordY;
+                CursorLabel.IsVisible = true;
 
-                for (int pos = pointStart; pos < pointEnd; pos++)
+                if (PlotPolygon.IsVisible)
                 {
-                    int distance = Math.Max(1, Math.Abs(pointIndex - pos));
-                    double distFact = Math.Sqrt(1.0f - (distance / (double)region));
-                    double relValue = PlotPolygon.Ys[pos] * distFact;
+                    (double pointX, double pointY, int pointIndex) = PlotPolygon.GetPointNearestX(mouseCoordX);
 
-                    if (relValue > peakRelValue)
+                    CurrentWavelength = pointX;
+
+                    if (pointIndex > 0 && pointX > 0)
                     {
-                        peakWavelength = PlotPolygon.Xs[pos];
-                        peakValue = PlotPolygon.Ys[pos];
-                        peakRelValue = relValue;
-                        peakIndex = pos;
+                        MaxArrow.Tip.X = pointX;
+                        MaxArrow.Tip.Y = pointY;
+                        MaxArrow.Base.X = pointX;
+                    }
+
+                    int region = 50;
+                    int pointStart = Math.Max(pointIndex - region, PlotPolygon.MinRenderIndex);
+                    int pointEnd = Math.Min(pointIndex + region, PlotPolygon.MaxRenderIndex);
+                    double peakValue = double.MinValue;
+                    double peakWavelength = 0;
+                    double peakRelValue = 0;
+                    int peakIndex = -1;
+
+                    for (int pos = pointStart; pos < pointEnd; pos++)
+                    {
+                        int distance = Math.Max(1, Math.Abs(pointIndex - pos));
+                        double distFact = Math.Sqrt(1.0f - (distance / (double)region));
+                        double relValue = PlotPolygon.Ys[pos] * distFact;
+
+                        if (relValue > peakRelValue)
+                        {
+                            peakWavelength = PlotPolygon.Xs[pos];
+                            peakValue = PlotPolygon.Ys[pos];
+                            peakRelValue = relValue;
+                            peakIndex = pos;
+                        }
+                    }
+
+                    if (peakIndex >= 0)
+                    {
+                        MaxArrow.Label = "Maximum λ: " + peakWavelength.ToString("0.00") + " nm";
+                        MaxArrow.Tip.X = peakWavelength;
+                        MaxArrow.Base.X = peakWavelength;
+                        MaxArrow.Tip.Y = peakValue;
+                        MaxLabel.X = peakWavelength + 15 / pxPerUnit;
+                        MaxLabel.Y = peakValue + 32 / pyPerUnit;
+                        MaxLabel.Label = "Maximum at λ: " + peakWavelength.ToString("0.00") + " nm";
                     }
                 }
-
-                if (peakIndex >= 0)
-                {
-                    MaxArrow.Label = "      λ: " + peakWavelength.ToString("0.00") + " nm";
-                    MaxArrow.Tip.X = peakWavelength;
-                    MaxArrow.Base.X = peakWavelength;
-                    MaxArrow.Tip.Y = peakValue;
-                    MaxLabel.X = peakWavelength + 15 / formsPlot1.Plot.XAxis.Dims.PxPerUnit;
-                    MaxLabel.Y = peakValue - 8 / formsPlot1.Plot.YAxis.Dims.PxPerUnit;
-                    MaxLabel.Label = "λ: " + peakWavelength.ToString("0.00") + " nm";
-                }
-
                 RedrawPlot();
             }
             catch (Exception ex)
@@ -453,7 +466,7 @@ namespace SpectrumPlotter
 
                 ConfigUpdated |= Config.CheckReload();
 
-                if (!PayloadUpdated && !PlotUpdated && !ConfigUpdated)
+                if (!SensorDataReceived && !PlotUpdated && !ConfigUpdated)
                 {
                     return;
                 }
@@ -467,95 +480,131 @@ namespace SpectrumPlotter
                     Resampling = true;
                 }
 
-                int used = PayloadUsed;
-
-                if (PayloadUpdated || ConfigUpdated)
+                if (SensorDataReceived || ConfigUpdated)
                 {
-                    if (SignalX.Length != used)
-                    {
-                        PlotRebuild = true;
-                        Array.Resize(ref SignalX, used);
-                        Array.Resize(ref SignalY, used);
-                    }
+                    int used = PayloadUsed;
 
-                    if (Config.DarkFrame.Length != used)
+                    if (Config.DarkFrame == null || Config.DarkFrame.Length != used)
                     {
                         Config.DarkFrame = new ushort[used];
                     }
 
-                    for (int pos = 0; pos < used; pos++)
+                    if (used != 0)
                     {
-                        double dark = Config.DarkFrame[pos];
-                        double value = PayloadBuffer[pos];
-                        double adcValue = (value - Math.Min(dark, value)) / 0xFFFF;
+                        PlotRebuild = true;
 
-                        adcValue = Math.Max(0, adcValue);
-                        adcValue = Math.Min(1.0f, adcValue);
+                        if (SignalCorrectedX == null)
+                        {
+                            SignalCorrectedX = new double[used];
+                            SignalCorrectedY = new double[used];
+                        }
 
-                        SignalX[pos] = TransformLambda(pos);
-                        SignalY[pos] = TransformIntensity(adcValue, SignalX[pos]);
+                        if (SignalCorrectedX.Length != used)
+                        {
+                            Array.Resize(ref SignalCorrectedX, used);
+                            Array.Resize(ref SignalCorrectedY, used);
+                        }
+
+                        for (int pos = 0; pos < used; pos++)
+                        {
+                            double dark = Config.DarkFrame[pos];
+                            double value = PayloadBuffer[pos];
+                            double adcValue = (value - Math.Min(dark, value)) / 0xFFFF;
+
+                            adcValue = Math.Max(0, adcValue);
+                            adcValue = Math.Min(1.0f, adcValue);
+
+                            SignalCorrectedX[pos] = TransformLambda(pos);
+                            SignalCorrectedY[pos] = TransformIntensity(adcValue, SignalCorrectedX[pos]);
+                        }
                     }
 
-                    if (Config.Trigger && Config.TriggerAutoNormalize)
+                    if (Config.Trigger && Config.TriggerAutoNormalize && SignalCorrectedY != null)
                     {
                         double max = 0;
                         for (int pos = 0; pos < used; pos++)
                         {
-                            max = Math.Max(max, SignalY[pos]);
+                            max = Math.Max(max, SignalCorrectedY[pos]);
                         }
 
                         if (max != 0)
                         {
                             for (int pos = 0; pos < used; pos++)
                             {
-                                SignalY[pos] /= max;
+                                SignalCorrectedY[pos] /= max;
                             }
                         }
                     }
 
-                    int groupSize = Math.Max(1, SignalX.Length / Config.ResampleResolution);
-                    int resampleSize = SignalX.Length / groupSize;
-
-                    if (SignalResampledX.Length != resampleSize)
+                    if (used != 0)
                     {
-                        PlotRebuild = true;
-                        Array.Resize(ref SignalResampledX, resampleSize);
-                        Array.Resize(ref SignalResampledY, resampleSize);
-                    }
-
-                    for (int pos = 0; pos < resampleSize; pos++)
-                    {
-                        double xSum = 0;
-                        double ySum = 0;
-                        int startSrc = (int)(pos * groupSize);
-                        int endSrc = (int)Math.Min(((pos + 1) * groupSize), SignalX.Length);
-
-                        for (int srcPos = startSrc; srcPos < endSrc; srcPos++)
+                        int groupSize = Math.Max(1, SignalCorrectedX.Length / Config.ResampleResolution);
+                        int resampleSize = SignalCorrectedX.Length / groupSize;
+                        
+                        if (SignalResampledX == null)
                         {
-                            xSum += SignalX[srcPos];
-                            ySum += SignalY[srcPos];
+                            SignalResampledX = new double[resampleSize];
+                            SignalResampledY = new double[resampleSize];
                         }
 
-                        SignalResampledX[pos] = xSum / groupSize;
-                        SignalResampledY[pos] = ySum / groupSize;
-                    }
-
-                    if (Config.Trigger && Config.TriggerAutoCapture)
-                    {
-                        if (Config.TriggerAutoClear)
+                        if (SignalResampledX.Length != resampleSize)
                         {
-                            ClearCaptures();
+                            PlotRebuild = true;
+                            Array.Resize(ref SignalResampledX, resampleSize);
+                            Array.Resize(ref SignalResampledY, resampleSize);
                         }
 
-                        CaptureAdd(SignalResampledX, SignalResampledY);
-                        PlotRebuild = true;
+                        for (int pos = 0; pos < resampleSize; pos++)
+                        {
+                            double xSum = 0;
+                            double ySum = 0;
+                            int startSrc = (int)(pos * groupSize);
+                            int endSrc = (int)Math.Min(((pos + 1) * groupSize), SignalCorrectedX.Length);
+
+                            for (int srcPos = startSrc; srcPos < endSrc; srcPos++)
+                            {
+                                xSum += SignalCorrectedX[srcPos];
+                                ySum += SignalCorrectedY[srcPos];
+                            }
+
+                            SignalResampledX[pos] = xSum / groupSize;
+                            SignalResampledY[pos] = ySum / groupSize;
+                        }
+
+                        if (Config.Trigger && Config.TriggerAutoCapture)
+                        {
+                            if (Config.TriggerAutoClear)
+                            {
+                                ClearCaptures();
+                            }
+
+                            CaptureAdd(SignalResampledX, SignalResampledY);
+                            PlotRebuild = true;
+                        }
+
+                        if (Config.Trigger && Config.TriggerAutoMatch)
+                        {
+                            CalculateMatch(SignalResampledX, SignalResampledY);
+                            PlotRebuild = true;
+                        }
                     }
 
-                    if (Config.Trigger && Config.TriggerAutoMatch)
+                    /* update main plot */
+                    if (SignalResampledX != null)
                     {
-                        CalculateMatch(SignalResampledX, SignalResampledY);
-                        PlotRebuild = true;
+                        if (PlotPolygon.Xs != SignalResampledX)
+                        {
+                            PlotPolygon.IsVisible = true;
+                            PlotPolygon.Xs = SignalResampledX;
+                            PlotPolygon.Ys = SignalResampledY;
+                            PlotPolygon.MaxRenderIndex = SignalResampledX.Length - 1;
+                            formsPlot1.Plot.SetAxisLimits(SignalResampledX[0], SignalResampledX[SignalResampledX.Length - 1], 0, 1.0f);
+                            PlotPolygon.ValidateData();
+                            PlotPolygon.MarkerSize = 0;
+                        }
                     }
+
+                    PlotPolygon.Color = GetColor(Config.MeasurementColor, Color.SkyBlue);
 
                     PlotUpdated = true;
                 }
@@ -564,7 +613,6 @@ namespace SpectrumPlotter
             }
             catch(Exception ex)
             {
-
             }
 
             Resampling = false;
@@ -572,6 +620,12 @@ namespace SpectrumPlotter
 
         private void RedrawPlot()
         {
+            if(InvokeRequired)
+            {
+                Invoke( new Action(()=> { RedrawPlot(); }));
+                return;
+            }
+
             lock (this)
             {
                 if (Updating)
@@ -581,78 +635,84 @@ namespace SpectrumPlotter
                 Updating = true;
             }
 
-            double minValue = double.MaxValue;
-            double maxValue = 0;
-            double maxWavelength = 0;
-
-            for (int pos = 0; pos < SignalResampledX.Length; pos++)
+            try
             {
-                if (SignalResampledY[pos] > maxValue)
+                lock (formsPlot1)
                 {
-                    maxValue = SignalResampledY[pos];
-                    maxWavelength = SignalResampledX[pos];
-                }
-                if (SignalResampledY[pos] < minValue)
-                {
-                    minValue = SignalResampledY[pos];
-                }
-            }
-
-            lock (formsPlot1)
-            {
-                bool plotFit = PlotFit;
-
-                if (PlotRebuild || PlotPolygon == null || MaxLabel == null || MaxArrow == null || CursorLabel == null || formsPlot1.Plot.GetPlottables().Count() == 0)
-                {
-                    formsPlot1.Plot.Clear();
-
-                    Color colorMeasurement = Color.SkyBlue;
-                    if (!string.IsNullOrEmpty(Config.LibsColor))
+                    if (PlotPolygon.IsVisible)
                     {
-                        try
+                        double minValue = double.MaxValue;
+                        double maxValue = 0;
+
+                        /* calculate min/max values */
+                        for (int pos = 0; pos < PlotPolygon.Xs.Length; pos++)
                         {
-                            colorMeasurement = Color.FromName(Config.MeasurementColor);
+                            if (PlotPolygon.Ys[pos] > maxValue)
+                            {
+                                maxValue = PlotPolygon.Ys[pos];
+                            }
+                            if (PlotPolygon.Ys[pos] < minValue)
+                            {
+                                minValue = PlotPolygon.Ys[pos];
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                        }
+                        MaxArrow.Base.Y = minValue;
                     }
 
-                    PlotPolygon = formsPlot1.Plot.AddSignalXY(SignalResampledX, SignalResampledY, label: "Measurement", color: colorMeasurement);
-                    MaxLabel = new Text() { Label = "(empty)", Color = Color.Red };
-                    MaxArrow = new ArrowCoordinated(0, 0, 0, 0) { Color = Color.Red, LineWidth = 2, ArrowheadWidth = 9, ArrowheadLength = 9 };
-                    CursorLabel = new Text() { Label = "(empty)", Color = Color.Green };
-                    RefreshCapturedPlots();
-                    formsPlot1.Plot.SetAxisLimits(SignalResampledX[0], SignalResampledX[SignalResampledX.Length - 1], 0, 1.0f);
-                    MouseEntered = false;
-                }
+                    /* update the plot setup */
+                    bool plotFit = PlotFit;
 
-                if (PlotPolygon.Xs != SignalResampledX)
-                {
-                    PlotPolygon.Xs = SignalResampledX;
-                    PlotPolygon.Ys = SignalResampledY;
-                    PlotPolygon.MaxRenderIndex = SignalResampledX.Length - 1;
-                    PlotPolygon.ValidateData();
-                    PlotPolygon.MarkerSize = 0;
-                }
-                MaxArrow.Base.Y = minValue;
+                    /* re-add all plottables */
+                    if (PlotRebuild)
+                    {
+                        formsPlot1.Plot.Clear();
 
-                if (plotFit)
-                {
-                    formsPlot1.Plot.AxisAuto();
-                }
+                        formsPlot1.Plot.Add(PlotPolygon);
+                        formsPlot1.Plot.Add(PlotSelectedElement);
+                        formsPlot1.Plot.Add(MaxLabel);
+                        formsPlot1.Plot.Add(CursorLabel);
+                        formsPlot1.Plot.Add(MaxArrow);
 
-                formsPlot1.Refresh();
-                formsPlot1.Render();
+                        RefreshCapturedPlots();
+                    }
+
+
+                    if (plotFit)
+                    {
+                        formsPlot1.Plot.AxisAuto();
+                    }
+
+                    formsPlot1.Refresh();
+                    formsPlot1.Render();
+                }
+            }
+            catch (Exception ex)
+            {
             }
 
-            PayloadUpdated = false;
+            SensorDataReceived = false;
             PlotUpdated = false;
             ConfigUpdated = false;
             PlotRebuild = false;
             PlotFit = false;
 
             Updating = false;
+        }
+
+        private Color GetColor(string colorString, Color defaultColor)
+        {
+            if (!string.IsNullOrEmpty(Config.LibsColor))
+            {
+                try
+                {
+                    defaultColor = Color.FromName(colorString);
+                }
+                catch (Exception ex)
+                {
+                }
+            }
+
+            return defaultColor;
         }
 
         private void formsPlot1_MouseEnter(object sender, EventArgs e)
@@ -663,11 +723,14 @@ namespace SpectrumPlotter
                 {
                     return;
                 }
-                formsPlot1.Plot.Add(CursorLabel);
-                formsPlot1.Plot.Add(MaxArrow);
-                formsPlot1.Plot.Add(MaxLabel);
+                CursorLabel.IsVisible = true;
+                MaxArrow.IsVisible = true;
+                MaxLabel.IsVisible = true;
+
                 MouseEntered = true;
                 PlotUpdated = true;
+
+                RedrawPlot();
             }
         }
 
@@ -679,11 +742,14 @@ namespace SpectrumPlotter
                 {
                     return;
                 }
-                formsPlot1.Plot.Remove(CursorLabel);
-                formsPlot1.Plot.Remove(MaxArrow);
-                formsPlot1.Plot.Remove(MaxLabel);
+                CursorLabel.IsVisible = false;
+                MaxArrow.IsVisible = false;
+                MaxLabel.IsVisible = false;
+
                 MouseEntered = false;
                 PlotUpdated = true;
+
+                RedrawPlot();
             }
         }
 
@@ -775,7 +841,7 @@ namespace SpectrumPlotter
                     //PayloadBuffer[pos] = (ushort)(0xFFFF * pos / 3694);
                 }
                 PayloadUsed = serialReadBuf.Length / 2;
-                PayloadUpdated = true;
+                SensorDataReceived = true;
             }
         }
 
@@ -954,13 +1020,16 @@ namespace SpectrumPlotter
 
         private void BtnCapture_Click(object sender, EventArgs e)
         {
-            if(PlotPolygon == null)
+            if(!PlotPolygon.IsVisible)
             {
                 return;
             }
 
-            CaptureAdd(SignalResampledX, SignalResampledY);
+            CaptureAdd(PlotPolygon.Xs, PlotPolygon.Ys);
+
             PlotRebuild = true;
+            PlotFit = true;
+            RedrawPlot();
         }
 
         private void RemoveCapture(SignalPlotXY signalPlotXY)
@@ -970,7 +1039,10 @@ namespace SpectrumPlotter
                 CapturedPlots.Remove(signalPlotXY);
             }
             RefreshCaptures();
+
             PlotRebuild = true;
+            PlotFit = true;
+            RedrawPlot();
         }
 
         private void ClearCaptures()
@@ -981,7 +1053,10 @@ namespace SpectrumPlotter
                 keys.ForEach(p => CapturedPlots.Remove(p));
             }
             RefreshCaptures();
+
             PlotRebuild = true;
+            PlotFit = true;
+            RedrawPlot();
         }
 
         private void BtnClear_Click(object sender, EventArgs e)
@@ -1004,7 +1079,10 @@ namespace SpectrumPlotter
                 window.Color = plot.Color.ToString();
             }
             RefreshCaptures();
+
             PlotRebuild = true;
+            PlotFit = true;
+            RedrawPlot();
         }
 
         private void CalculateMatch(double[] xs, double[] ys)
@@ -1101,15 +1179,16 @@ namespace SpectrumPlotter
             PlotUpdated = true;
         }
 
-        private void lstElementLib_Click(object sender, EventArgs e)
+        private void lstElementLib_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
         {
-            if (lstElementLib.SelectedItems.Count != 1)
-            {
-                return;
-            }
             if (ModifierKeys == Keys.Alt)
             {
-                ListViewItem elem = lstElementLib.SelectedItems[0];
+                var elem = lstElementLib.GetItemAt(e.Location.X, e.Location.Y);
+
+                if (elem == null)
+                {
+                    return;
+                }
 
                 ElementInfo info = Elements.Get(elem.Text);
                 if (info == null)
@@ -1119,20 +1198,35 @@ namespace SpectrumPlotter
                 double[] Xs = info.Wavelengths;
                 double[] Ys = info.Elements.Where(el => el.Name == elem.Text).First().IntensitiesNormalized;
 
-                SignalResampledX = Xs;
-                SignalResampledY = Ys;
+                PlotPolygon.Xs = Xs;
+                PlotPolygon.Ys = Ys;
+                PlotPolygon.IsVisible = true;
+                PlotPolygon.MinRenderIndex = 0;
+                PlotPolygon.MaxRenderIndex = Xs.Length - 1;
+                PlotPolygon.MinRenderIndex = 0;
+
+                PlotUpdated = true;
+                PlotFit = true;
+                RedrawPlot();
+            }
+        }
+
+        private void lstElementLib_Click(object sender, EventArgs e)
+        {
+            return;
+            if (lstElementLib.SelectedItems.Count != 1)
+            {
+                return;
             }
 
             PlotUpdated = true;
             PlotFit = true;
+            RedrawPlot();
         }
 
         private void lstElementLib_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
         {
-            if (PlotSelectedElement != null)
-            {
-                formsPlot1.Plot.Remove(PlotSelectedElement);
-            }
+            PlotSelectedElement.IsVisible = false;
 
             if (lstElementLib.SelectedItems.Count != 1)
             {
@@ -1150,11 +1244,6 @@ namespace SpectrumPlotter
             double[] Xs = info.Wavelengths;
             double[] Ys = info.Elements.Where(el => el.Name == elem.Text).First().IntensitiesNormalized;
 
-            if (ModifierKeys == Keys.Shift)
-            {
-                SignalResampledX = Xs;
-                SignalResampledY = Ys;
-            }
 
             Color color = Color.Red;
             if (!string.IsNullOrEmpty(Config.LibsColor))
@@ -1167,10 +1256,16 @@ namespace SpectrumPlotter
                 {
                 }
             }
+            PlotSelectedElement.IsVisible = true;
+            PlotSelectedElement.Xs = Xs;
+            PlotSelectedElement.Ys = Ys;
+            PlotSelectedElement.Label = elem.Text;
+            PlotSelectedElement.MaxRenderIndex = Ys.Length - 1;
 
-            PlotSelectedElement = formsPlot1.Plot.AddSignalXY(Xs, Ys, label: info.Name, color: color);
             PlotUpdated = true;
+            PlotRebuild = true;
             PlotFit = true;
+            RedrawPlot();
         }
 
         private double MatchSignal(double[] sample, double[] reference)
