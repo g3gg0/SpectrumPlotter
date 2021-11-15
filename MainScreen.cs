@@ -124,6 +124,9 @@ namespace SpectrumPlotter
             txtIcgPeriod.Text = (Config.IcgPeriod * 2).ToString();
             chkTrigger.Checked = Config.Trigger;
             txtTriggerDelay.Text = Config.TriggerDelay.ToString();
+
+            PlotSelectedElement.Color = GetColor(Config.LibsColor, Color.Red);
+            PlotPolygon.Color = GetColor(Config.MeasurementColor, Color.SkyBlue);
         }
 
         private void cmbPorts_DropDown(object sender, EventArgs e)
@@ -293,7 +296,7 @@ namespace SpectrumPlotter
             }
         }
 
-        private void FormsPlot1_MouseMove(object sender, MouseEventArgs e)
+        private async void FormsPlot1_MouseMove(object sender, MouseEventArgs e)
         {
             try
             {
@@ -357,8 +360,9 @@ namespace SpectrumPlotter
                         MaxLabel.Y = peakValue + 32 / pyPerUnit;
                         MaxLabel.Label = "Maximum at λ: " + peakWavelength.ToString("0.00") + " nm";
                     }
+
+                    RedrawPlot();
                 }
-                RedrawPlot();
             }
             catch (Exception ex)
             {
@@ -603,8 +607,6 @@ namespace SpectrumPlotter
                             PlotPolygon.MarkerSize = 0;
                         }
                     }
-
-                    PlotPolygon.Color = GetColor(Config.MeasurementColor, Color.SkyBlue);
 
                     PlotUpdated = true;
                 }
