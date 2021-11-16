@@ -32,6 +32,7 @@ namespace SpectrumPlotter
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainScreen));
             this.btnConnect = new System.Windows.Forms.Button();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.cmbPorts = new System.Windows.Forms.ComboBox();
             this.label5 = new System.Windows.Forms.Label();
             this.btnDark = new System.Windows.Forms.Button();
             this.progressBar = new System.Windows.Forms.ProgressBar();
@@ -65,7 +66,6 @@ namespace SpectrumPlotter
             this.lstPolyfit = new System.Windows.Forms.ListView();
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader3 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.cmbPorts = new System.Windows.Forms.ComboBox();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -129,6 +129,15 @@ namespace SpectrumPlotter
             this.splitContainer1.Size = new System.Drawing.Size(1043, 523);
             this.splitContainer1.SplitterDistance = 51;
             this.splitContainer1.TabIndex = 3;
+            // 
+            // cmbPorts
+            // 
+            this.cmbPorts.FormattingEnabled = true;
+            this.cmbPorts.Location = new System.Drawing.Point(13, 10);
+            this.cmbPorts.Name = "cmbPorts";
+            this.cmbPorts.Size = new System.Drawing.Size(84, 21);
+            this.cmbPorts.TabIndex = 11;
+            this.cmbPorts.DropDown += new System.EventHandler(this.cmbPorts_DropDown);
             // 
             // label5
             // 
@@ -333,6 +342,7 @@ namespace SpectrumPlotter
             // 
             // lstElementLib
             // 
+            this.lstElementLib.CheckBoxes = true;
             this.lstElementLib.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.colHdrSymbol,
             this.colHdrMatch});
@@ -345,8 +355,9 @@ namespace SpectrumPlotter
             this.lstElementLib.UseCompatibleStateImageBehavior = false;
             this.lstElementLib.View = System.Windows.Forms.View.Details;
             this.lstElementLib.ColumnClick += new System.Windows.Forms.ColumnClickEventHandler(this.lstElementLib_ColumnClick);
-            this.lstElementLib.ItemSelectionChanged += new System.Windows.Forms.ListViewItemSelectionChangedEventHandler(this.lstElementLib_ItemSelectionChanged);
-            this.lstElementLib.MouseDown += lstElementLib_MouseDown;
+            this.lstElementLib.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.lstElementLib_ItemCheck);
+            this.lstElementLib.ItemChecked += new System.Windows.Forms.ItemCheckedEventHandler(this.lstElementLib_ItemChecked);
+            this.lstElementLib.MouseDown += new System.Windows.Forms.MouseEventHandler(this.lstElementLib_MouseDown);
             // 
             // colHdrSymbol
             // 
@@ -371,6 +382,7 @@ namespace SpectrumPlotter
             // 
             // lstCaptures
             // 
+            this.lstCaptures.CheckBoxes = true;
             this.lstCaptures.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.colName,
             this.columnHeader1});
@@ -384,6 +396,7 @@ namespace SpectrumPlotter
             this.lstCaptures.UseCompatibleStateImageBehavior = false;
             this.lstCaptures.View = System.Windows.Forms.View.Details;
             this.lstCaptures.AfterLabelEdit += new System.Windows.Forms.LabelEditEventHandler(this.lstCaptures_AfterLabelEdit);
+            this.lstCaptures.ItemChecked += new System.Windows.Forms.ItemCheckedEventHandler(this.lstCaptures_ItemChecked);
             this.lstCaptures.SelectedIndexChanged += new System.EventHandler(this.lstCaptures_SelectedIndexChanged);
             this.lstCaptures.MouseUp += new System.Windows.Forms.MouseEventHandler(this.lstCaptures_MouseUp);
             // 
@@ -474,15 +487,6 @@ namespace SpectrumPlotter
             // 
             this.columnHeader3.Text = "λ";
             this.columnHeader3.Width = 74;
-            // 
-            // cmbPorts
-            // 
-            this.cmbPorts.FormattingEnabled = true;
-            this.cmbPorts.Location = new System.Drawing.Point(13, 10);
-            this.cmbPorts.Name = "cmbPorts";
-            this.cmbPorts.Size = new System.Drawing.Size(84, 21);
-            this.cmbPorts.TabIndex = 11;
-            this.cmbPorts.DropDown += new System.EventHandler(this.cmbPorts_DropDown);
             // 
             // MainScreen
             // 

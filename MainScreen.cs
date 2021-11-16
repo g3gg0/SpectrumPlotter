@@ -43,10 +43,12 @@ namespace SpectrumPlotter
         private double[] SignalResampledY = null;
         private int PayloadUsed = 0;
         private bool SensorDataReceived = false;
-        private bool PlotUpdated = false;
-        private bool PlotRebuild = false;
+        private bool PlotUpdateAsync = false;
+        private bool PlotRebuild = true;
         private bool PlotFit = false;
         private bool MouseEntered = false;
+
+        private ListViewItem LastCheckedElement = null;
 
         private bool Updating = false;
         private SignalPlotXY PlotPolygon = null;
@@ -361,8 +363,8 @@ namespace SpectrumPlotter
                         MaxLabel.Label = "Maximum at λ: " + peakWavelength.ToString("0.00") + " nm";
                     }
 
-                    RedrawPlot();
                 }
+                RedrawPlot();
             }
             catch (Exception ex)
             {
@@ -470,7 +472,7 @@ namespace SpectrumPlotter
 
                 ConfigUpdated |= Config.CheckReload();
 
-                if (!SensorDataReceived && !PlotUpdated && !ConfigUpdated)
+                if (!SensorDataReceived && !PlotUpdateAsync && !ConfigUpdated)
                 {
                     return;
                 }
@@ -608,7 +610,7 @@ namespace SpectrumPlotter
                         }
                     }
 
-                    PlotUpdated = true;
+                    PlotUpdateAsync = true;
                 }
 
                 RedrawPlot();
@@ -678,7 +680,6 @@ namespace SpectrumPlotter
                         RefreshCapturedPlots();
                     }
 
-
                     if (plotFit)
                     {
                         formsPlot1.Plot.AxisAuto();
@@ -693,7 +694,7 @@ namespace SpectrumPlotter
             }
 
             SensorDataReceived = false;
-            PlotUpdated = false;
+            PlotUpdateAsync = false;
             ConfigUpdated = false;
             PlotRebuild = false;
             PlotFit = false;
@@ -725,12 +726,12 @@ namespace SpectrumPlotter
                 {
                     return;
                 }
-                CursorLabel.IsVisible = true;
-                MaxArrow.IsVisible = true;
-                MaxLabel.IsVisible = true;
+                CursorLabel.IsVisible = PlotPolygon.IsVisible || PlotSelectedElement.IsVisible || CapturedPlots.Count > 0;
+                MaxArrow.IsVisible = PlotPolygon.IsVisible;
+                MaxLabel.IsVisible = PlotPolygon.IsVisible;
 
                 MouseEntered = true;
-                PlotUpdated = true;
+                //PlotUpdateAsync = true;
 
                 RedrawPlot();
             }
@@ -749,7 +750,7 @@ namespace SpectrumPlotter
                 MaxLabel.IsVisible = false;
 
                 MouseEntered = false;
-                PlotUpdated = true;
+                //PlotUpdateAsync = true;
 
                 RedrawPlot();
             }
@@ -1155,11 +1156,25 @@ namespace SpectrumPlotter
 
                 foreach (var cap in CapturedPlots.Keys)
                 {
-                    var lst = new ListViewItem(new string[] { cap.Label, "" }) { Tag = cap };
+                    var lst = new ListViewItem(new string[] { cap.Label, "" }) { Tag = cap, Checked = cap.IsVisible };
                     lstCaptures.Items.Add(lst);
                     CaptureListMap.Add(cap, lst);
                 }
             }));
+        }
+
+        private void lstCaptures_ItemChecked(object sender, ItemCheckedEventArgs e)
+        {
+            var p = CaptureListMap.Where(pair => pair.Value == e.Item).FirstOrDefault();
+
+            if(p.Key == null)
+            {
+                return;
+            }
+
+            p.Key.IsVisible = e.Item.Checked;
+
+            PlotUpdateAsync = true;
         }
 
         private void lstCaptures_SelectedIndexChanged(object sender, EventArgs e)
@@ -1171,7 +1186,7 @@ namespace SpectrumPlotter
 
             if (lstCaptures.SelectedItems.Count == 0)
             {
-                PlotUpdated = true;
+                PlotUpdateAsync = true;
                 return;
             }
 
@@ -1179,7 +1194,7 @@ namespace SpectrumPlotter
             SignalPlotXY plot = item.Tag as SignalPlotXY;
 
             plot.LineWidth = 3;
-            PlotUpdated = true;
+            PlotUpdateAsync = true;
         }
 
         private void lstElementLib_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
@@ -1208,67 +1223,61 @@ namespace SpectrumPlotter
                 PlotPolygon.MaxRenderIndex = Xs.Length - 1;
                 PlotPolygon.MinRenderIndex = 0;
 
-                PlotUpdated = true;
+                PlotUpdateAsync = true;
                 PlotFit = true;
-                RedrawPlot();
             }
         }
 
-        private void lstElementLib_Click(object sender, EventArgs e)
+        private void lstElementLib_ItemCheck(object sender, ItemCheckEventArgs e)
         {
-            return;
-            if (lstElementLib.SelectedItems.Count != 1)
+            if (e.CurrentValue == CheckState.Checked && e.NewValue == CheckState.Unchecked)
             {
-                return;
+                LastCheckedElement = null;
             }
-
-            PlotUpdated = true;
-            PlotFit = true;
-            RedrawPlot();
+            else if(e.NewValue == CheckState.Checked)
+            {
+                if (LastCheckedElement != null && LastCheckedElement.Checked && LastCheckedElement != lstElementLib.Items[e.Index])
+                {
+                    LastCheckedElement.Checked = false;
+                }
+                LastCheckedElement = lstElementLib.Items[e.Index];
+            }
         }
 
-        private void lstElementLib_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
+        private void lstElementLib_ItemChecked(object sender, ItemCheckedEventArgs e)
+        {
+            UpdateNistSignals();
+        }
+
+        void UpdateNistSignals()
         {
             PlotSelectedElement.IsVisible = false;
 
-            if (lstElementLib.SelectedItems.Count != 1)
+            if(LastCheckedElement == null || !LastCheckedElement.Checked)
             {
-                PlotUpdated = true;
+                PlotUpdateAsync = true;
                 return;
             }
-            ListViewItem elem = lstElementLib.SelectedItems[0];
+            string elementName = LastCheckedElement.Text;
 
-            ElementInfo info = Elements.Get(elem.Text);
+
+            ElementInfo info = Elements.Get(elementName);
             if (info == null)
             {
-                PlotUpdated = true;
+                PlotUpdateAsync = true;
                 return;
             }
             double[] Xs = info.Wavelengths;
-            double[] Ys = info.Elements.Where(el => el.Name == elem.Text).First().IntensitiesNormalized;
+            double[] Ys = info.Elements.Where(el => el.Name == elementName).First().IntensitiesNormalized;
 
-
-            Color color = Color.Red;
-            if (!string.IsNullOrEmpty(Config.LibsColor))
-            {
-                try
-                {
-                    color = Color.FromName(Config.LibsColor);
-                }
-                catch (Exception ex)
-                {
-                }
-            }
             PlotSelectedElement.IsVisible = true;
             PlotSelectedElement.Xs = Xs;
             PlotSelectedElement.Ys = Ys;
-            PlotSelectedElement.Label = elem.Text;
+            PlotSelectedElement.Label = elementName;
             PlotSelectedElement.MaxRenderIndex = Ys.Length - 1;
 
-            PlotUpdated = true;
-            PlotRebuild = true;
             PlotFit = true;
-            RedrawPlot();
+            PlotUpdateAsync = true;
         }
 
         private double MatchSignal(double[] sample, double[] reference)
