@@ -24,12 +24,20 @@ namespace SpectrumPlotter
         public double Sensor
         {
             get => _Sensor;
-            set => txtSensor.Text = value.ToString();
+            set
+            {
+                txtSensor.Text = value.ToString();
+                BringToFront();
+            }
         }
         public double Reference
         {
             get => _Reference;
-            set => txtReference.Text = value.ToString();
+            set
+            {
+                txtReference.Text = value.ToString();
+                BringToFront();
+            }
         }
 
         public PolyfitForm()

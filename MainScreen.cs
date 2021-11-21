@@ -91,7 +91,7 @@ namespace SpectrumPlotter
             MaxArrow = new ArrowCoordinated(0, 0, 0, 0) { Label = "", Color = Color.Red, LineWidth = 2, ArrowheadWidth = 9, ArrowheadLength = 9, IsVisible = false };
             CursorLabel = new Text() { X = 0, Y = 0, Label = "(empty)", Color = Color.Green, IsVisible = false };
             PlotSelectedElement = new SignalPlotXY() { Label = "empty", IsVisible = false };
-            PlotPolygon = new SignalPlotXY() { Label = "Measuement", IsVisible = false };
+            PlotPolygon = new SignalPlotXY() { Label = "Measurement", IsVisible = false };
 
             Config = ConfigFile.Load(Config.Filename, out bool valid);
 
@@ -1487,10 +1487,12 @@ namespace SpectrumPlotter
 
         private void AddPolyfitItem()
         {
-            PolyfitForm form = new PolyfitForm();
+            PolyfitForm polyFitForm = new PolyfitForm();
 
-            form.PolyfitAdded += Form_PolyfitAdded;
-            form.Show();
+            polyFitForm.PolyfitAdded += Form_PolyfitAdded;
+            polyFitForm.StartPosition = FormStartPosition.Manual;
+            polyFitForm.Location = lstPolyfit.PointToScreen(new Point());
+            polyFitForm.Show(this);
         }
 
         private void Form_PolyfitAdded(double sensor, double reference)
