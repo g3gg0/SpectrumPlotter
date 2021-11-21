@@ -424,6 +424,7 @@ namespace SpectrumPlotter
                     MainThread.Start();
 
                     btnConnect.Text = "Disconnect";
+                    cmbPorts.Enabled = false;
 
                     Config.SerialPort = cmbPorts.Text;
                     Config.Changed = true;
@@ -450,6 +451,7 @@ namespace SpectrumPlotter
                 Port = null;
 
                 btnConnect.Text = "Connect";
+                cmbPorts.Enabled = true;
             }
         }
 
