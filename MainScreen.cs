@@ -386,7 +386,7 @@ namespace SpectrumPlotter
                     Port.ReadTimeout = 200;
                     Flush();
 
-                    byte[] txCommand = new byte[] { 0x45, 0x52, 0x00, 0x00, 0x01, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x02, 0x00 };
+                    byte[] txCommand = new byte[] { 0x45, 0x52, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x02, 0x00 };
 
                     Port.Write(txCommand, 0, txCommand.Length);
                     Thread.Sleep(100);
@@ -1004,15 +1004,15 @@ namespace SpectrumPlotter
                 return;
             }
 
-            value = Math.Min(Math.Max(0, value), 4000000000);
+            value = Math.Min(Math.Max(0, value), 65535);
 
             txtTriggerDelay.BackColor = Color.White;
             if (txtTriggerDelay.Text != value.ToString())
             {
                 txtTriggerDelay.Text = value.ToString();
-                Config.TriggerDelay = (int)value;
-                Config.Changed = true;
             }
+            Config.TriggerDelay = (int)value;
+            Config.Changed = true;
         }
 
         private void btnDark_Click(object sender, EventArgs e)
