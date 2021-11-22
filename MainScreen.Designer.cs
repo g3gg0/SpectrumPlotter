@@ -213,9 +213,9 @@ namespace SpectrumPlotter
             this.label3.AutoSize = true;
             this.label3.Location = new System.Drawing.Point(633, 13);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(65, 13);
+            this.label3.Size = new System.Drawing.Size(54, 13);
             this.label3.TabIndex = 4;
-            this.label3.Text = "Delay [ticks]";
+            this.label3.Text = "Delay [µs]";
             // 
             // label2
             // 
@@ -262,6 +262,7 @@ namespace SpectrumPlotter
             // formsPlot1
             // 
             this.formsPlot1.BackColor = System.Drawing.Color.Transparent;
+            this.formsPlot1.Cursor = System.Windows.Forms.Cursors.Arrow;
             this.formsPlot1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.formsPlot1.Location = new System.Drawing.Point(0, 0);
             this.formsPlot1.Name = "formsPlot1";
