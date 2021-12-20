@@ -1,6 +1,4 @@
 ﻿using MathNet.Numerics.LinearAlgebra;
-using MathNet.Numerics.LinearAlgebra.Double;
-using MathNet.Numerics.LinearAlgebra.Factorization;
 using MathNet.Numerics.LinearRegression;
 using Newtonsoft.Json;
 using ScottPlot;
@@ -10,17 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Data.Odbc;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 /*
@@ -110,12 +103,10 @@ namespace SpectrumPlotter
             lvwColumnSorter = new ListViewColumnSorter();
             this.lstElementLib.ListViewItemSorter = lvwColumnSorter;
 
-
             Config.ChangedCallback += () => { UpdateFromConfig(); };
             UpdateFromConfig();
 
             UpdateElements();
-            //LoadCaptured();
         }
 
         void UpdateFromConfig()
@@ -733,7 +724,6 @@ namespace SpectrumPlotter
                 MaxLabel.IsVisible = PlotPolygon.IsVisible;
 
                 MouseEntered = true;
-                //PlotUpdateAsync = true;
 
                 RedrawPlot();
             }
@@ -752,7 +742,6 @@ namespace SpectrumPlotter
                 MaxLabel.IsVisible = false;
 
                 MouseEntered = false;
-                //PlotUpdateAsync = true;
 
                 RedrawPlot();
             }
@@ -811,7 +800,6 @@ namespace SpectrumPlotter
         {
             byte[] txCommand = new byte[] { 0x45, 0x52, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x02, 0x00 };
             byte[] serialReadBuf = new byte[3694 * 2];
-            byte[] rxBuffer = new byte[10];
 
             while (true)
             {
