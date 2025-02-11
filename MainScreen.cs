@@ -243,7 +243,14 @@ namespace SpectrumPlotter
             string ser = File.ReadAllText(name);
             SpectrumWindow window = JsonConvert.DeserializeObject<SpectrumWindow>(ser);
 
-            var plot = formsPlot.Plot.AddSignalXY(window.Wavelengths, window.Intensities, label: window.Name);
+            var plot = new RainbowSignalPlotXY() { Label = window.Name, Xs = window.Wavelengths, Ys = window.Intensities, IsVisible = true };
+
+            plot.MaxRenderIndex = plot.Xs.Length - 1;
+            plot.ValidateData();
+
+            formsPlot.Plot.Add(plot);
+
+            //var plot = formsPlot.Plot.AddSignalXY(window.Wavelengths, window.Intensities, label: window.Name);
             if (!string.IsNullOrEmpty(window.Color))
             {
                 Color color = plot.Color;
