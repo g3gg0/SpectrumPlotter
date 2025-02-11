@@ -45,7 +45,7 @@ namespace SpectrumPlotter
             this.label1 = new System.Windows.Forms.Label();
             this.txtIcgPeriod = new System.Windows.Forms.TextBox();
             this.txtShPeriod = new System.Windows.Forms.TextBox();
-            this.formsPlot1 = new ScottPlot.FormsPlot();
+            this.formsPlot = new ScottPlot.FormsPlot();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
             this.splitContainer3 = new System.Windows.Forms.SplitContainer();
             this.btnFetch = new System.Windows.Forms.Button();
@@ -125,7 +125,7 @@ namespace SpectrumPlotter
             // 
             // splitContainer1.Panel2
             // 
-            this.splitContainer1.Panel2.Controls.Add(this.formsPlot1);
+            this.splitContainer1.Panel2.Controls.Add(this.formsPlot);
             this.splitContainer1.Size = new System.Drawing.Size(1043, 523);
             this.splitContainer1.SplitterDistance = 51;
             this.splitContainer1.TabIndex = 3;
@@ -261,15 +261,15 @@ namespace SpectrumPlotter
             // 
             // formsPlot1
             // 
-            this.formsPlot1.BackColor = System.Drawing.Color.Transparent;
-            this.formsPlot1.Cursor = System.Windows.Forms.Cursors.Arrow;
-            this.formsPlot1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.formsPlot1.Location = new System.Drawing.Point(0, 0);
-            this.formsPlot1.Name = "formsPlot1";
-            this.formsPlot1.Size = new System.Drawing.Size(1043, 468);
-            this.formsPlot1.TabIndex = 0;
-            this.formsPlot1.MouseEnter += new System.EventHandler(this.formsPlot1_MouseEnter);
-            this.formsPlot1.MouseLeave += new System.EventHandler(this.formsPlot1_MouseLeave);
+            this.formsPlot.BackColor = System.Drawing.Color.Transparent;
+            this.formsPlot.Cursor = System.Windows.Forms.Cursors.Arrow;
+            this.formsPlot.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.formsPlot.Location = new System.Drawing.Point(0, 0);
+            this.formsPlot.Name = "formsPlot";
+            this.formsPlot.Size = new System.Drawing.Size(1043, 468);
+            this.formsPlot.TabIndex = 0;
+            this.formsPlot.MouseEnter += new System.EventHandler(this.formsPlot1_MouseEnter);
+            this.formsPlot.MouseLeave += new System.EventHandler(this.formsPlot1_MouseLeave);
             // 
             // splitContainer2
             // 
@@ -528,7 +528,7 @@ namespace SpectrumPlotter
 
         private System.Windows.Forms.Button btnConnect;
         private System.Windows.Forms.SplitContainer splitContainer1;
-        private ScottPlot.FormsPlot formsPlot1;
+        private ScottPlot.FormsPlot formsPlot;
         private System.Windows.Forms.CheckBox chkTrigger;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label1;

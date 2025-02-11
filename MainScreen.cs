@@ -46,6 +46,7 @@ namespace SpectrumPlotter
         private bool Updating = false;
         private SignalPlotXY PlotPolygon = null;
         private SignalPlotXY PlotSelectedElement = null;
+        private RainbowPlot Spectrum = null;
         private Text MaxLabel = null;
         private Text CursorLabel = null;
         private ArrowCoordinated MaxArrow = null;
@@ -65,26 +66,29 @@ namespace SpectrumPlotter
         private double[] LastGeneratedPoly = null;
         private bool Resampling;
 
+
+
         public MainScreen()
         {
             InitializeComponent();
 
-            Text += "      v" + ThisAssembly.Git.SemVer.Major + "." + ThisAssembly.Git.SemVer.Minor + "." + ThisAssembly.Git.Commits + "-" + ThisAssembly.Git.Branch + "+" + ThisAssembly.Git.Commit + (ThisAssembly.Git.IsDirty ? " dirty" : "");
+            Text += "      v" + System.Reflection.ThisAssembly.Git.SemVer.Major + "." + System.Reflection.ThisAssembly.Git.SemVer.Minor + "." + System.Reflection.ThisAssembly.Git.Commits + "-" + System.Reflection.ThisAssembly.Git.Branch + "+" + System.Reflection.ThisAssembly.Git.Commit + (System.Reflection.ThisAssembly.Git.IsDirty ? " dirty" : "");
 
-            formsPlot1.Plot.XLabel("Wavelength [nm]");
-            formsPlot1.Plot.YLabel("Amplitude [rel]");
-            formsPlot1.Plot.Title("CMOS Spectral plot");
-            formsPlot1.Plot.Style(Style.Gray2);
-            formsPlot1.Plot.Legend();
-            formsPlot1.MouseMove += FormsPlot1_MouseMove;
-            formsPlot1.RightClicked -= formsPlot1.DefaultRightClickEvent;
-            formsPlot1.RightClicked += CustomRightClickEvent;
+            formsPlot.Plot.XLabel("Wavelength [nm]");
+            formsPlot.Plot.YLabel("Amplitude [rel]");
+            formsPlot.Plot.Title("CMOS Spectral plot");
+            formsPlot.Plot.Style(Style.Gray2);
+            formsPlot.Plot.Legend();
+            formsPlot.MouseMove += FormsPlot1_MouseMove;
+            formsPlot.RightClicked -= formsPlot.DefaultRightClickEvent;
+            formsPlot.RightClicked += CustomRightClickEvent;
 
             MaxLabel = new Text() { X = 0, Y = 0, Label = "(empty)", Color = Color.Red, IsVisible = false };
             MaxArrow = new ArrowCoordinated(0, 0, 0, 0) { Label = "", Color = Color.Red, LineWidth = 2, ArrowheadWidth = 9, ArrowheadLength = 9, IsVisible = false };
             CursorLabel = new Text() { X = 0, Y = 0, Label = "(empty)", Color = Color.Green, IsVisible = false };
             PlotSelectedElement = new SignalPlotXY() { Label = "empty", IsVisible = false };
             PlotPolygon = new SignalPlotXY() { Label = "Measurement", IsVisible = false };
+            Spectrum = new RainbowPlot(Fetcher.MinWavelength, Fetcher.MaxWavelength);
 
             Config = ConfigFile.Load(Config.Filename, out bool valid);
 
@@ -147,7 +151,7 @@ namespace SpectrumPlotter
                 }
             }
             ContextMenuStrip customMenu = new ContextMenuStrip();
-            customMenu.Items.Add(new ToolStripMenuItem("Zoom to fit data", null, (s, ev) => { formsPlot1.Plot.AxisAuto(); }));
+            customMenu.Items.Add(new ToolStripMenuItem("Zoom to fit data", null, (s, ev) => { formsPlot.Plot.AxisAuto(); }));
             customMenu.Items.Add(new ToolStripMenuItem("---"));
             customMenu.Items.Add(new ToolStripMenuItem("Save last captured spectrum", null, new EventHandler(SaveCaptured)));
             customMenu.Items.Add(new ToolStripMenuItem("Load captured spectrum", null, new EventHandler(LoadCaptured)));
@@ -239,7 +243,7 @@ namespace SpectrumPlotter
             string ser = File.ReadAllText(name);
             SpectrumWindow window = JsonConvert.DeserializeObject<SpectrumWindow>(ser);
 
-            var plot = formsPlot1.Plot.AddSignalXY(window.Wavelengths, window.Intensities, label: window.Name);
+            var plot = formsPlot.Plot.AddSignalXY(window.Wavelengths, window.Intensities, label: window.Name);
             if (!string.IsNullOrEmpty(window.Color))
             {
                 Color color = plot.Color;
@@ -293,9 +297,9 @@ namespace SpectrumPlotter
         {
             try
             {
-                double pxPerUnit = formsPlot1.Plot.XAxis.Dims.PxPerUnit;
-                double pyPerUnit = formsPlot1.Plot.YAxis.Dims.PxPerUnit;
-                (double mouseCoordX, double mouseCoordY) = formsPlot1.GetMouseCoordinates();
+                double pxPerUnit = formsPlot.Plot.XAxis.Dims.PxPerUnit;
+                double pyPerUnit = formsPlot.Plot.YAxis.Dims.PxPerUnit;
+                (double mouseCoordX, double mouseCoordY) = formsPlot.GetMouseCoordinates();
 
                 if (double.IsNaN(pxPerUnit) || double.IsNaN(pyPerUnit))
                 {
@@ -597,7 +601,7 @@ namespace SpectrumPlotter
                             PlotPolygon.Xs = SignalResampledX;
                             PlotPolygon.Ys = SignalResampledY;
                             PlotPolygon.MaxRenderIndex = SignalResampledX.Length - 1;
-                            formsPlot1.Plot.SetAxisLimits(SignalResampledX[0], SignalResampledX[SignalResampledX.Length - 1], 0, 1.0f);
+                            formsPlot.Plot.SetAxisLimits(SignalResampledX[0], SignalResampledX[SignalResampledX.Length - 1], 0, 1.0f);
                             PlotPolygon.ValidateData();
                             PlotPolygon.MarkerSize = 0;
                         }
@@ -634,7 +638,7 @@ namespace SpectrumPlotter
 
             try
             {
-                lock (formsPlot1)
+                lock (formsPlot)
                 {
                     if (PlotPolygon.IsVisible)
                     {
@@ -662,24 +666,26 @@ namespace SpectrumPlotter
                     /* re-add all plottables */
                     if (PlotRebuild)
                     {
-                        formsPlot1.Plot.Clear();
+                        formsPlot.Plot.Clear();
 
-                        formsPlot1.Plot.Add(PlotPolygon);
-                        formsPlot1.Plot.Add(PlotSelectedElement);
-                        formsPlot1.Plot.Add(MaxLabel);
-                        formsPlot1.Plot.Add(CursorLabel);
-                        formsPlot1.Plot.Add(MaxArrow);
+
+                        formsPlot.Plot.Add(Spectrum);
+                        formsPlot.Plot.Add(PlotPolygon);
+                        formsPlot.Plot.Add(PlotSelectedElement);
+                        formsPlot.Plot.Add(MaxLabel);
+                        formsPlot.Plot.Add(CursorLabel);
+                        formsPlot.Plot.Add(MaxArrow);
 
                         RefreshCapturedPlots();
                     }
 
                     if (plotFit)
                     {
-                        formsPlot1.Plot.AxisAuto();
+                        formsPlot.Plot.AxisAuto();
                     }
 
-                    formsPlot1.Refresh();
-                    formsPlot1.Render();
+                    formsPlot.Refresh();
+                    formsPlot.Render();
                 }
             }
             catch (Exception ex)
@@ -713,7 +719,7 @@ namespace SpectrumPlotter
 
         private void formsPlot1_MouseEnter(object sender, EventArgs e)
         {
-            lock (formsPlot1)
+            lock (formsPlot)
             {
                 if (MouseEntered)
                 {
@@ -731,7 +737,7 @@ namespace SpectrumPlotter
 
         private void formsPlot1_MouseLeave(object sender, EventArgs e)
         {
-            lock (formsPlot1)
+            lock (formsPlot)
             {
                 if (!MouseEntered)
                 {
@@ -1028,7 +1034,7 @@ namespace SpectrumPlotter
 
         private void RemoveCapture(SignalPlotXY signalPlotXY)
         {
-            lock (formsPlot1)
+            lock (formsPlot)
             {
                 CapturedPlots.Remove(signalPlotXY);
             }
@@ -1041,7 +1047,7 @@ namespace SpectrumPlotter
 
         private void ClearCaptures()
         {
-            lock (formsPlot1)
+            lock (formsPlot)
             {
                 var keys = CapturedPlots.Where(kvp => kvp.Value.Temporary).Select(kvp => kvp.Key).ToList();
                 keys.ForEach(p => CapturedPlots.Remove(p));
@@ -1063,10 +1069,10 @@ namespace SpectrumPlotter
             double[] Xs = (double[])xs.Clone();
             double[] Ys = (double[])ys.Clone();
 
-            lock (formsPlot1)
+            lock (formsPlot)
             {
                 string label = "Captured " + DateTime.Now.ToLongTimeString();
-                var plot = formsPlot1.Plot.AddSignalXY(Xs, Ys, label: label);
+                var plot = formsPlot.Plot.AddSignalXY(Xs, Ys, label: label);
                 SpectrumWindow window = new SpectrumWindow(label) { Wavelengths = Xs, Intensities = Ys };
                 CapturedPlots.Add(plot, window);
 
@@ -1133,7 +1139,7 @@ namespace SpectrumPlotter
         {
             foreach (var kvp in CapturedPlots)
             {
-                formsPlot1.Plot.Add(kvp.Key);
+                formsPlot.Plot.Add(kvp.Key);
             }
         }
 
@@ -1265,6 +1271,7 @@ namespace SpectrumPlotter
             PlotSelectedElement.Ys = Ys;
             PlotSelectedElement.Label = elementName;
             PlotSelectedElement.MaxRenderIndex = Ys.Length - 1;
+
 
             PlotFit = true;
             PlotUpdateAsync = true;
@@ -1419,9 +1426,9 @@ namespace SpectrumPlotter
                 {
                     if (item.Bounds.Contains(new Point(e.X, e.Y)))
                     {
-                        lstCaptures.ContextMenu = new ContextMenu();
-                        lstCaptures.ContextMenu.MenuItems.Add(new MenuItem("Save...", (s, ev) => { SaveCapturedDialog(item.Tag as SignalPlotXY); }));
-                        lstCaptures.ContextMenu.MenuItems.Add(new MenuItem("Delete", (s, ev) => { RemoveCapture(item.Tag as SignalPlotXY); }));
+                        lstCaptures.ContextMenuStrip = new ContextMenuStrip();
+                        lstCaptures.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Save...", null, (s, ev) => { SaveCapturedDialog(item.Tag as SignalPlotXY); }));
+                        lstCaptures.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Delete", null, (s, ev) => { RemoveCapture(item.Tag as SignalPlotXY); }));
 
                         match = true;
                         break;
@@ -1430,9 +1437,9 @@ namespace SpectrumPlotter
 
                 if (!match)
                 {
-                    lstCaptures.ContextMenu = new ContextMenu();
-                    lstCaptures.ContextMenu.MenuItems.Add(new MenuItem("Load...", (s, ev) => { LoadCapturedDialog(); }));
-                    lstCaptures.ContextMenu.MenuItems.Add(new MenuItem("Clear", (s, ev) => { ClearCaptures(); }));
+                    lstCaptures.ContextMenuStrip = new ContextMenuStrip();
+                    lstCaptures.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Load...", null, (s, ev) => { LoadCapturedDialog(); }));
+                    lstCaptures.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Clear", null, (s, ev) => { ClearCaptures(); }));
                 }
             }
         }
@@ -1447,14 +1454,14 @@ namespace SpectrumPlotter
 
         private void lstPoly_MouseUp(object sender, MouseEventArgs e)
         {
-            lstPoly.ContextMenu = new ContextMenu();
-            lstPoly.ContextMenu.MenuItems.Add(new MenuItem("Reset config", (s, ev) =>
+            lstPoly.ContextMenuStrip = new ContextMenuStrip();
+            lstPoly.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Reset config", null, (s, ev) =>
             {
                 Config.LambdaMap = new ConfigFile.Polynomial(0, 1, 0, 0, Config.LambdaMap.Description);
                 Config.Changed = true;
                 PolyfitCalc();
             }));
-            lstPoly.ContextMenu.MenuItems.Add(new MenuItem("Apply polynomial", (s, ev) =>
+            lstPoly.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Apply polynomial", null, (s, ev) =>
             {
                 Config.LambdaMap.Coefficients = LastGeneratedPoly;
                 Config.Changed = true;
@@ -1472,8 +1479,10 @@ namespace SpectrumPlotter
                 {
                     if (item.Bounds.Contains(new Point(e.X, e.Y)))
                     {
-                        lstPolyfit.ContextMenu = new ContextMenu();
-                        lstPolyfit.ContextMenu.MenuItems.Add(new MenuItem("Delete", (s, ev) => { lstPolyfit.Items.Remove(item); PolyfitCalc(); }));
+                        // TODO ContextMenu wird nicht mehr unterstützt. Verwenden Sie stattdessen ContextMenuStrip. Weitere Informationen finden Sie unter: https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+                        lstPolyfit.ContextMenuStrip = new ContextMenuStrip();
+                        // TODO MenuItem wird nicht mehr unterstützt. Verwenden Sie stattdessen ToolStripMenuItem. Weitere Informationen finden Sie unter: https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+                        lstPolyfit.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Delete", null,  (s, ev) => { lstPolyfit.Items.Remove(item); PolyfitCalc(); }));
 
                         match = true;
                         break;
@@ -1482,18 +1491,24 @@ namespace SpectrumPlotter
 
                 if (!match)
                 {
-                    lstPolyfit.ContextMenu = new ContextMenu();
+                    // TODO ContextMenu wird nicht mehr unterstützt. Verwenden Sie stattdessen ContextMenuStrip. Weitere Informationen finden Sie unter: https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+                    lstPolyfit.ContextMenuStrip = new ContextMenuStrip();
                     bool enabled = true;
 
                     enabled &= Config.LambdaMap.Coefficients.SequenceEqual(new double[] { 0, 1, 0, 0 });
                     if (!enabled)
                     {
-                        lstPolyfit.ContextMenu.MenuItems.Add(new MenuItem("Here you can add measured and expected wavelengths.") { Enabled = false });
-                        lstPolyfit.ContextMenu.MenuItems.Add(new MenuItem("To use, first reset polynomial above using right click") { Enabled = false });
-                        lstPolyfit.ContextMenu.MenuItems.Add(new MenuItem("---") { Enabled = false });
+                        // TODO MenuItem wird nicht mehr unterstützt. Verwenden Sie stattdessen ToolStripMenuItem. Weitere Informationen finden Sie unter: https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+                        lstPolyfit.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Here you can add measured and expected wavelengths.") { Enabled = false });
+                        // TODO MenuItem wird nicht mehr unterstützt. Verwenden Sie stattdessen ToolStripMenuItem. Weitere Informationen finden Sie unter: https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+                        lstPolyfit.ContextMenuStrip.Items.Add(new ToolStripMenuItem("To use, first reset polynomial above using right click") { Enabled = false });
+                        // TODO MenuItem wird nicht mehr unterstützt. Verwenden Sie stattdessen ToolStripMenuItem. Weitere Informationen finden Sie unter: https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+                        lstPolyfit.ContextMenuStrip.Items.Add(new ToolStripMenuItem("---") { Enabled = false });
                     }
-                    lstPolyfit.ContextMenu.MenuItems.Add(new MenuItem("Add...", (s, ev) => { AddPolyfitItem(); }) { Enabled = enabled });
-                    lstPolyfit.ContextMenu.MenuItems.Add(new MenuItem("Clear", (s, ev) => { lstPolyfit.Items.Clear(); PolyfitCalc(); }));
+                    // TODO MenuItem wird nicht mehr unterstützt. Verwenden Sie stattdessen ToolStripMenuItem. Weitere Informationen finden Sie unter: https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+                    lstPolyfit.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Add...", null, (s, ev) => { AddPolyfitItem(); }) { Enabled = enabled });
+                    // TODO MenuItem wird nicht mehr unterstützt. Verwenden Sie stattdessen ToolStripMenuItem. Weitere Informationen finden Sie unter: https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+                    lstPolyfit.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Clear", null, (s, ev) => { lstPolyfit.Items.Clear(); PolyfitCalc(); }));
                 }
             }
         }
