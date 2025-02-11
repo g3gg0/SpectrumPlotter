@@ -49,6 +49,12 @@ namespace SpectrumPlotter.LIBS
                 }
 
                 string responseBody = resp.Result;
+
+                if(!responseBody.Contains("var dataDopplerArray=") || !responseBody.Contains("    var dataSticksArray="))
+                {
+                    return false;
+                }
+
                 string assignStart = responseBody.Substring(responseBody.IndexOf("var dataDopplerArray=") + 21);
                 string assignContent = assignStart.Substring(0, assignStart.IndexOf("    var dataSticksArray=")).Replace("\r", "").Replace("\n", "").Trim(';');
 
