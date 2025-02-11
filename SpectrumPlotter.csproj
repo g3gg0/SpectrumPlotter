@@ -96,7 +96,7 @@
     <Compile Include="PolyfitForm.Designer.cs">
       <DependentUpon>PolyfitForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Program.cs" />
+    <Compile Include="Pr0gramm.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="MainScreen.resx">
       <DependentUpon>MainScreen.cs</DependentUpon>

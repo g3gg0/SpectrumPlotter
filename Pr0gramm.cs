@@ -7,11 +7,8 @@ using System.Windows.Forms;
 
 namespace SpectrumPlotter
 {
-    static class Program
+    static class Pr0gramm
     {
-        /// <summary>
-        /// Der Haupteinstiegspunkt für die Anwendung.
-        /// </summary>
         [STAThread]
         static void Main()
         {
