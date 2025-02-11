@@ -48,6 +48,11 @@ namespace SpectrumPlotter.LIBS
                     return false;
                 }
 
+                if (ret.Result.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    return false;
+                }
+
                 string responseBody = resp.Result;
 
                 if(!responseBody.Contains("var dataDopplerArray=") || !responseBody.Contains("    var dataSticksArray="))
