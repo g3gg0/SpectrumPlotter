@@ -86,8 +86,8 @@ namespace SpectrumPlotter
             MaxLabel = new Text() { X = 0, Y = 0, Label = "(empty)", Color = Color.Red, IsVisible = false };
             MaxArrow = new ArrowCoordinated(0, 0, 0, 0) { Label = "", Color = Color.Red, LineWidth = 2, ArrowheadWidth = 9, ArrowheadLength = 9, IsVisible = false };
             CursorLabel = new Text() { X = 0, Y = 0, Label = "(empty)", Color = Color.Green, IsVisible = false };
-            PlotSelectedElement = new SignalPlotXY() { Label = "empty", IsVisible = false };
-            PlotPolygon = new SignalPlotXY() { Label = "Measurement", IsVisible = false };
+            PlotSelectedElement = new RainbowSignalPlotXY() { Label = "empty", IsVisible = false };
+            PlotPolygon = new RainbowSignalPlotXY() { Label = "Measurement", IsVisible = false, LineWidth = 2 };
             Spectrum = new RainbowPlot(Fetcher.MinWavelength, Fetcher.MaxWavelength);
 
             Config = ConfigFile.Load(Config.Filename, out bool valid);
