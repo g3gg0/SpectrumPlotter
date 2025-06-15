@@ -90,13 +90,6 @@ namespace SpectrumPlotter
             PlotPolygon = new RainbowSignalPlotXY() { Label = "Measurement", IsVisible = false, LineWidth = 2 };
             Spectrum = new RainbowPlot(Fetcher.MinWavelength, Fetcher.MaxWavelength);
 
-            Config = ConfigFile.Load(Config.Filename, out bool valid);
-
-            if(!valid)
-            {
-                MessageBox.Show("Failed to load config file. Resetting to defaults.", "Failed to load config");
-            }
-
             UpdateTimer = new System.Windows.Forms.Timer
             {
                 Interval = 50
@@ -107,10 +100,33 @@ namespace SpectrumPlotter
             lvwColumnSorter = new ListViewColumnSorter();
             this.lstElementLib.ListViewItemSorter = lvwColumnSorter;
 
+            LoadConfig();
+
             Config.ChangedCallback += () => { UpdateFromConfig(); };
             UpdateFromConfig();
-
             UpdateElements();
+            UpdateSerialPorts();
+        }
+
+        private void LoadConfig()
+        {
+            Config = ConfigFile.Load(Config.Filename, out bool valid);
+            if (!valid)
+            {
+                MessageBox.Show("Failed to load config file. Resetting to defaults.", "Failed to load config");
+            }
+        }
+
+        private void UpdateSerialPorts()
+        {
+            string[] ports = SerialPort.GetPortNames();
+
+            cmbPorts.Items.Clear();
+            cmbPorts.Items.AddRange(ports);
+            if (ports.Length > 0 && cmbPorts.Text.Length == 0)
+            {
+                cmbPorts.Text = ports[0];
+            }
         }
 
         void UpdateFromConfig()
@@ -128,10 +144,7 @@ namespace SpectrumPlotter
 
         private void cmbPorts_DropDown(object sender, EventArgs e)
         {
-            string[] ports = SerialPort.GetPortNames();
-
-            cmbPorts.Items.Clear();
-            cmbPorts.Items.AddRange(ports);
+            UpdateSerialPorts();
         }
 
         private void CustomRightClickEvent(object sender, EventArgs e)
@@ -379,16 +392,30 @@ namespace SpectrumPlotter
             {
                 bool success = false;
                 string message = "";
+                string portName = cmbPorts.Text;
+                string[] ports = SerialPort.GetPortNames();
+
+                if (portName == "")
+                {
+                    MessageBox.Show("The serial port you specified is invalid", "Invalid Serial Port");
+                    return;
+                }
+
+                if(!ports.Contains(portName))
+                {
+                    MessageBox.Show("The serial port you specified was not found", "Invalid Serial Port");
+                    return;
+                }
 
                 try
                 {
-                    Port = new SerialPort(cmbPorts.Text, 500000);
+                    Port = new SerialPort(portName, 500000);
                     Port.Open();
 
                     Port.ReadTimeout = 200;
                     Flush();
 
-                    byte[] txCommand = new byte[] { 0x45, 0x52, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x02, 0x00 };
+                    byte[] txCommand = [0x45, 0x52, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x02, 0x00];
 
                     Port.Write(txCommand, 0, txCommand.Length);
                     Thread.Sleep(100);
@@ -428,14 +455,23 @@ namespace SpectrumPlotter
                     btnConnect.Text = "Disconnect";
                     cmbPorts.Enabled = false;
 
-                    Config.SerialPort = cmbPorts.Text;
+                    Config.SerialPort = portName;
                     Config.Changed = true;
                 }
                 else
                 {
                     MessageBox.Show(message, "Failed to open serial port");
-                    Port.Close();
-                    Port = null;
+                    if (Port != null)
+                    {
+                        try
+                        {
+                            Port.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                        }
+                        Port = null;
+                    }
                 }
             }
             else
@@ -675,7 +711,6 @@ namespace SpectrumPlotter
                     {
                         formsPlot.Plot.Clear();
 
-
                         formsPlot.Plot.Add(Spectrum);
                         formsPlot.Plot.Add(PlotPolygon);
                         formsPlot.Plot.Add(PlotSelectedElement);
@@ -689,6 +724,10 @@ namespace SpectrumPlotter
                     if (plotFit)
                     {
                         formsPlot.Plot.AxisAuto();
+                        formsPlot.Plot.XAxis.SetBoundary(200, 1000);
+                        formsPlot.Plot.YAxis.SetBoundary(-0.05f, 1.01f);
+                        //formsPlot.Plot.YAxis.SetInnerBoundary(-0.005, 0.1);
+                        formsPlot.Plot.YAxis.LockLimits(true);
                     }
 
                     formsPlot.Refresh();

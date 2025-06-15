@@ -73,7 +73,7 @@ namespace SpectrumPlotter
         public uint ShPeriod = 10;
         public uint IcgPeriod = 7400;
         public int TriggerDelay = 0;
-        public string SerialPort = "COM1";
+        public string SerialPort = "";
         public int ResampleResolution = 1024;
         public int LibsMinWavelength = 300;
         public int LibsMaxWavelength = 600;
