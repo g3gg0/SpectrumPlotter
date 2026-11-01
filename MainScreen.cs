@@ -822,30 +822,28 @@ namespace SpectrumPlotter
 
         private int PortRead(byte[] buffer, int timeout)
         {
-            DateTime start = DateTime.Now;
-            DateTime end = start.AddMilliseconds(timeout);
+            if (Port == null || !Port.IsOpen)
+                throw new InvalidOperationException("Serial port is not open");
 
-            while (timeout == -1 || (DateTime.Now < end))
+            int totalRead = 0;
+            DateTime deadline = timeout < 0 ? DateTime.MaxValue : DateTime.UtcNow.AddMilliseconds(timeout);
+            while (totalRead < buffer.Length)
             {
-                if(Port.BytesToRead >= buffer.Length)
+                if (timeout >= 0 && DateTime.UtcNow >= deadline)
+                    throw new TimeoutException($"Received {totalRead} of {buffer.Length} expected bytes");
+
+                int available = Port.BytesToRead;
+                if (available == 0)
                 {
-                    break;
+                    Thread.Sleep(1);
+                    continue;
                 }
+
+                int count = Math.Min(available, buffer.Length - totalRead);
+                totalRead += Port.Read(buffer, totalRead, count);
             }
 
-            int avail = Math.Min(Port.BytesToRead, buffer.Length);
-            if (avail != Port.BytesToRead)
-            {
-                Console.WriteLine();
-            }
-
-            int read = Port.Read(buffer, 0, avail);
-            if (read != avail)
-            {
-                throw new Exception("Failed to read data from serial port");
-            }
-
-            return read;
+            return totalRead;
         }
 
         private void MainFunc()
